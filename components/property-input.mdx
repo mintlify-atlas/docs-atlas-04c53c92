@@ -1,0 +1,179 @@
+---
+title: PropertyInput
+description: Input component for adding new property subscriptions with autocomplete
+---
+
+## Overview
+
+The `PropertyInput` component provides an input field for adding new property subscriptions to an object. It features intelligent autocomplete suggestions powered by Designer's Python runtime, update frequency configuration, and keyboard shortcuts for quick subscription management.
+
+**Source**: `src/components/PropertyInput.vue`
+
+## Props
+
+<ParamField path="objectName" type="string" required>
+  The name of the Designer object for which properties will be subscribed. This is used to fetch autocomplete suggestions contextual to the specific object.
+</ParamField>
+
+## Events
+
+<ParamField path="subscribe" type="({ property: string, options: SubscriptionConfiguration }) => void">
+  Emitted when the user submits a property to subscribe. The event payload includes the property expression and subscription options (including `updateFrequencyMs`).
+</ParamField>
+
+## Features
+
+### Intelligent Autocomplete
+
+The component provides context-aware autocomplete suggestions by calling a Python function in Designer. Suggestions are fetched as the user types, with a 250ms debounce to avoid excessive calls:
+
+```typescript
+watchDebounced(inputValue, async (newValue) => {
+  if (newValue.trim()) {
+    const result = await autocomplete(props.objectName, newValue.trim());
+    suggestions.value = JSON.parse(result.returnValue) || [];
+  } else {
+    suggestions.value = [];
+  }
+}, {
+  debounce: 250
+});
+```
+
+**Location**: `src/components/PropertyInput.vue:82`
+
+The autocomplete function is injected globally by the app and uses Designer's Python runtime to introspect the object and provide relevant property suggestions.
+
+### Keyboard Shortcuts
+
+<ParamField path="Enter" type="keyboard">
+  Submit the current property and create a subscription
+</ParamField>
+
+<ParamField path="Tab" type="keyboard">
+  Auto-complete with the first suggestion
+</ParamField>
+
+```vue
+<input
+  type="text"
+  v-model="inputValue"
+  placeholder="Enter property to subscribe"
+  @keyup.enter="emitSubscribe"
+  @keydown.tab.prevent="completeSuggestion"
+  :list="autocompleteListId"
+/>
+```
+
+**Location**: `src/components/PropertyInput.vue:3`
+
+### Configurable Update Frequency
+
+Users can specify how frequently (in milliseconds) the property value should be updated:
+
+```vue
+<div style="margin-top: 10px;">
+  <label for="update-frequency">Update Frequency (ms):</label>
+  <input
+    id="update-frequency"
+    type="number"
+    min="0"
+    v-model.number="updateFrequencyMs"
+    style="width: 100px; margin-left: 8px;"
+  />
+</div>
+```
+
+**Location**: `src/components/PropertyInput.vue:18`
+
+The default update frequency is 50ms, providing smooth real-time updates while balancing performance.
+
+### Auto-clear on Submit
+
+After successfully submitting a subscription, the input field is automatically cleared:
+
+```typescript
+const emitSubscribe = () => {
+  const property = inputValue.value.trim();
+  if (property) {
+    emit('subscribe', {
+      property,
+      options: {
+        updateFrequencyMs: updateFrequencyMs.value
+      }
+    });
+    inputValue.value = ''; // Clear input after subscribing
+  }
+};
+```
+
+**Location**: `src/components/PropertyInput.vue:57`
+
+## Usage
+
+```vue
+<PropertyInput
+  :objectName="'screen2:surface_1'"
+  @subscribe="handleSubscribe"
+/>
+```
+
+## Autocomplete Function
+
+The component requires an `autocomplete` function to be provided via Vue's dependency injection. This function is called with the object name and current input value:
+
+```typescript
+const autocomplete = inject<autocompleteFunction>('autocomplete');
+if (!autocomplete) {
+  throw new Error('autocomplete function not provided');
+}
+```
+
+**Location**: `src/components/PropertyInput.vue:52`
+
+The function should return suggestions based on the object's available properties and methods, introspected from Designer's Python runtime.
+
+## Component Structure
+
+```vue
+<div>
+  <input
+    type="text"
+    v-model="inputValue"
+    placeholder="Enter property to subscribe"
+    @keyup.enter="emitSubscribe"
+    @keydown.tab.prevent="completeSuggestion"
+    :list="autocompleteListId"
+  />
+  <datalist :id="autocompleteListId">
+    <option
+      v-for="suggestion in suggestions"
+      :key="suggestion"
+      :value="suggestion"
+    />
+  </datalist>
+  <div style="margin-top: 10px;">
+    <label for="update-frequency">Update Frequency (ms):</label>
+    <input
+      id="update-frequency"
+      type="number"
+      min="0"
+      v-model.number="updateFrequencyMs"
+      style="width: 100px; margin-left: 8px;"
+    />
+  </div>
+  <button @click="emitSubscribe">Subscribe</button>
+</div>
+```
+
+## Methods
+
+### emitSubscribe()
+
+Emits the `subscribe` event with the current property and options. Only emits if the input is not empty.
+
+### completeSuggestion()
+
+Auto-completes the input with the first available suggestion when Tab is pressed. Used for quick property selection from autocomplete suggestions.
+
+**Location**: `src/components/PropertyInput.vue:70`

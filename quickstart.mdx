@@ -1,80 +1,262 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with LiveUpdate Tester by subscribing to your first object property and viewing live updates.
 ---
 
-## Get started in three steps
+This guide will walk you through using LiveUpdate Tester to monitor object properties in your Designer project.
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+## Prerequisites
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Before starting this guide, make sure you have:
+- Designer running on your system
+- LiveUpdate Tester plugin installed (see [Installation](/installation))
+- A Designer project loaded with at least one object (e.g., a screen or layer)
 </Note>
+
+## Understanding the URL Format
+
+LiveUpdate Tester connects to your Designer instance using a URL parameter. The basic format is:
+
+```
+http://localhost/?director=<director-address>:<port>
+```
+
+<Info>
+**Examples:**
+- Designer on localhost port 80: `http://localhost/?director=localhost:80`
+- Designer on remote machine: `http://localhost/?director=192.168.1.100:80`
+- Default (uses current hostname): `http://localhost/`
+</Info>
+
+The plugin automatically uses `window.location.hostname` if no `director` parameter is provided, as shown in the initialization code from App.vue:19-20:
+
+```typescript
+const queryParams = new URLSearchParams(window.location.search);
+const director = queryParams.get('director') ?? window.location.hostname;
+```
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Launch the Plugin">
+    Open LiveUpdate Tester from Designer's plugin launcher or navigate to it in your web browser:
+    
+    ```
+    http://localhost/?director=localhost:80
+    ```
+    
+    You should see the main interface with the title "LiveUpdate Subscriptions" and an input field labeled "Object Name".
+  </Step>
+  
+  <Step title="Add Your First Object">
+    In the "Object Name" field, enter the path to a Designer object. For example:
+    
+    ```
+    screen2:surface_1
+    ```
+    
+    <Tip>
+    The format follows Designer's object hierarchy. Common examples:
+    - `screen2:surface_1` - A surface on screen 2
+    - `layer1` - A layer object
+    - `timeline1:track1` - A track on a timeline
+    </Tip>
+    
+    Click the **Add** button or press **Enter** to add the object.
+    
+    The interface will display a new subscription box showing:
+    - The object name
+    - The object type in brackets (e.g., `[Surface]`)
+    - A table for property subscriptions
+    - An input field to add property subscriptions
+  </Step>
+  
+  <Step title="Subscribe to a Property">
+    In the property input field within the object's subscription box, enter a property path you want to monitor. For example:
+    
+    ```
+    brightness
+    ```
+    
+    or for nested properties:
+    
+    ```
+    transform.position.x
+    ```
+    
+    <Info>
+    The plugin includes autocomplete functionality powered by the Designer Python API. Start typing to see available property suggestions.
+    </Info>
+    
+    Add the property subscription and watch as the "Value" column starts showing live updates from Designer.
+  </Step>
+  
+  <Step title="Monitor Live Updates">
+    As you modify the property in Designer (e.g., adjusting brightness of the surface), you'll see the value update in real-time in the LiveUpdate Tester interface.
+    
+    The update frequency is configurable. By default, properties are polled at a reasonable interval (as configured in ObjectSubscription.vue:99):
+    
+    ```typescript
+    { updateFrequencyMs: 1000 }
+    ```
+    
+    <Tip>
+    You can adjust the update frequency by modifying the subscription options if you need faster or slower updates.
+    </Tip>
+  </Step>
+  
+  <Step title="Edit Property Values (Optional)">
+    LiveUpdate Tester also allows you to modify property values directly from the UI.
+    
+    Click the edit action for a property to open a JSON editor. Modify the value and save to push the change to Designer.
+    
+    <Warning>
+    Be careful when editing properties directly, especially on live production systems. Changes are immediately applied to Designer.
+    </Warning>
+  </Step>
+</Steps>
+
+## Understanding the Interface
+
+### Object Subscription Box
+
+Each added object appears in its own subscription box containing:
+
+- **Object Header**: Shows the object name and type
+- **Resource Info**: For Resource objects, displays additional metadata
+- **Property Table**: Lists all subscribed properties with their current values
+- **Property Input**: Field to add new property subscriptions
+- **Remove Button**: Trash icon to remove the entire object subscription
+
+### Property Subscription Row
+
+Each subscribed property displays:
+
+- **Property**: The property path (e.g., `brightness`, `transform.position.x`)
+- **Value**: The current live value from Designer
+- **Action**: Buttons to edit or unsubscribe from the property
+
+## How LiveUpdate Works
+
+Under the hood, LiveUpdate Tester uses the `@disguise-one/vue-liveupdate` library, which:
+
+1. Connects to Designer via the Python API
+2. Subscribes to object properties using Python expressions
+3. Polls Designer at the specified frequency
+4. Updates Vue reactive refs with new values
+5. Triggers UI updates automatically through Vue's reactivity
+
+From App.vue:22, the connection is initialized with:
+
+```typescript
+const liveUpdate = useLiveUpdate(director);
+```
+
+This creates a LiveUpdate instance that manages all subscriptions and maintains the WebSocket or HTTP connection to Designer.
+
+## Example: Monitoring a Surface
+
+Let's walk through a complete example of monitoring a surface object:
+
+<Steps>
+  <Step title="Add the Surface Object">
+    ```
+    screen2:surface_1
+    ```
+  </Step>
+  
+  <Step title="Subscribe to Multiple Properties">
+    Add these properties one by one:
+    - `brightness`
+    - `colour.red`
+    - `colour.green`  
+    - `colour.blue`
+    - `opacity`
+  </Step>
+  
+  <Step title="Manipulate in Designer">
+    In Designer, select the surface and adjust its brightness, color, and opacity. Watch the values update live in LiveUpdate Tester.
+  </Step>
+</Steps>
+
+## Advanced Features
+
+### Python Expressions
+
+LiveUpdate subscriptions can use Python expressions for computed values. For example, the ObjectSubscription component subscribes to type information using expressions (ObjectSubscription.vue:94-100):
+
+```typescript
+const { type, isResource } = props.liveUpdate.subscribe(
+  props.objectName, {
+    type: 'type(object)',
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+This retrieves both the object's type and whether it's a Resource object using Python's built-in functions.
+
+### Persistent Subscriptions
+
+LiveUpdate Tester automatically saves your subscriptions to browser localStorage. When you reload the plugin, your objects and property subscriptions are restored automatically.
+
+From SubscriptionManager.vue:34:
+
+```typescript
+const objects = useStorage<string[]>('disguise-liveupdate-tester-subscriptionmanager', []);
+```
+
+<Tip>
+This means you can set up a monitoring dashboard once and it will persist across browser sessions.
+</Tip>
+
+## Troubleshooting
+
+### Plugin Won't Connect
+
+<Warning>
+If the plugin displays a connection error:
+1. Verify Designer is running
+2. Check the `director` URL parameter is correct
+3. Ensure Designer's web service is enabled
+4. Try accessing Designer's web interface directly to confirm it's accessible
+</Warning>
+
+### Object Not Found
+
+If you get an error when adding an object:
+- Verify the object path matches Designer's hierarchy exactly
+- Check spelling and capitalization (object names are case-sensitive)
+- Ensure the object exists in the current Designer project
+
+### Properties Not Updating
+
+If property values appear frozen:
+- Check that Designer is actively running (not paused)
+- Verify the property path is correct
+- Try unsubscribing and resubscribing to the property
+- Check the browser console for error messages
+
+## Next Steps
+
+Now that you're familiar with the basics:
+
+<CardGroup cols={2}>
+  <Card title="Explore Property Autocomplete" icon="wand-magic-sparkles">
+    Use the autocomplete feature to discover all available properties on your objects
+  </Card>
+  
+  <Card title="Test Update Frequencies" icon="gauge">
+    Experiment with different update frequencies to find the right balance for your use case
+  </Card>
+  
+  <Card title="Build Custom Plugins" icon="code">
+    Use what you've learned to integrate LiveUpdate into your own Designer plugins
+  </Card>
+  
+  <Card title="Contribute to the Project" icon="github">
+    Check out the [GitHub repository](https://github.com/disguise-one/Designer_Plugin-Live_Update) to contribute improvements
+  </Card>
+</CardGroup>

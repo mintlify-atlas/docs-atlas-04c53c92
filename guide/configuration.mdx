@@ -1,0 +1,426 @@
+---
+title: Configuration
+description: Configure update frequencies, Director connections, and persistence settings for the LiveUpdate Tester plugin
+---
+
+The LiveUpdate Tester plugin offers several configuration options to customize its behavior and optimize performance for your specific use case.
+
+## Update Frequency Configuration
+
+Update frequency controls how often property values are refreshed from disguise Designer. This is the most important performance tuning parameter.
+
+### Setting Update Frequency
+
+Each property subscription can have its own update frequency:
+
+```vue
+<!-- From PropertyInput.vue:19-26 -->
+<div style="margin-top: 10px;">
+  <label for="update-frequency">Update Frequency (ms):</label>
+  <input
+    id="update-frequency"
+    type="number"
+    min="0"
+    v-model.number="updateFrequencyMs"
+    style="width: 100px; margin-left: 8px;"
+  />
+</div>
+```
+
+### Default Values
+
+<Info>
+The default update frequency is **50ms**, which provides 20 updates per second—a good balance between responsiveness and performance.
+</Info>
+
+```typescript
+// From PropertyInput.vue:49
+const updateFrequencyMs = ref<number>(50);
+```
+
+### Recommended Frequencies by Use Case
+
+<Tabs>
+  <Tab title="Animation Properties">
+    For properties that change frequently (positions, rotations, animated values):
+    
+    **16-33ms** (30-60 updates per second)
+    
+    ```typescript
+    // 60fps updates for smooth animation monitoring
+    { updateFrequencyMs: 16 }
+    
+    // 30fps updates for less critical animations
+    { updateFrequencyMs: 33 }
+    ```
+  </Tab>
+  
+  <Tab title="Interactive Properties">
+    For properties that change during user interaction (selections, focus states):
+    
+    **50-100ms** (10-20 updates per second)
+    
+    ```typescript
+    // Default - good for most interactive properties
+    { updateFrequencyMs: 50 }
+    ```
+  </Tab>
+  
+  <Tab title="Static Properties">
+    For properties that rarely change (names, descriptions, IDs):
+    
+    **1000-5000ms** (0.2-1 updates per second)
+    
+    ```typescript
+    // Resource info updates slowly
+    { updateFrequencyMs: 1000 }
+    ```
+  </Tab>
+  
+  <Tab title="On-Demand">
+    For expensive computations or very large data:
+    
+    **5000ms+** (less than 1 update every 5 seconds)
+    
+    ```typescript
+    // Infrequent updates for heavy operations
+    { updateFrequencyMs: 10000 }
+    ```
+  </Tab>
+</Tabs>
+
+### Per-Subscription Configuration
+
+When you subscribe to a property, the options are passed to the LiveUpdate system:
+
+```typescript
+// From PropertyInput.vue:57-68
+const emitSubscribe = () => {
+  const property = inputValue.value.trim();
+  if (property) {
+    emit('subscribe', {
+      property,
+      options: {
+        updateFrequencyMs: updateFrequencyMs.value
+      }
+    });
+    inputValue.value = '';
+  }
+};
+```
+
+```typescript
+// From PropertySubscription.vue:47-51
+const subscription = props.liveUpdate.subscribe(props.objectName,
+  { [props.property]: props.property },
+  props.options  // Contains updateFrequencyMs
+);
+```
+
+<Warning>
+**Performance Impact**: Very low update frequencies (below 16ms) with many subscriptions can cause performance issues. Monitor your browser's performance if you experience slowdowns.
+</Warning>
+
+## Subscription Configuration Options
+
+Subscription configurations are stored with each property:
+
+```typescript
+// From ObjectSubscription.vue:82-88
+const subscribe = ({property, options = {}}: {property: string, options: SubscriptionConfiguration}) => {
+  console.log(JSON.stringify({property, options}));
+  const p = property.trim();
+  if (!subscriptions.value.some(sub => sub.property === p)) {
+    subscriptions.value.push({ property: p, options });
+  }
+};
+```
+
+### Configuration Object Structure
+
+The `SubscriptionConfiguration` type from `@disguise-one/vue-liveupdate` includes:
+
+```typescript
+interface SubscriptionConfiguration {
+  updateFrequencyMs?: number;  // Update frequency in milliseconds
+  // Additional options may be available - see vue-liveupdate docs
+}
+```
+
+### Built-in Subscription Examples
+
+#### Object Type Detection
+
+The plugin automatically subscribes to object type information:
+
+```typescript
+// From ObjectSubscription.vue:94-100
+const { type, isResource } = props.liveUpdate.subscribe(
+  props.objectName, {
+    type: 'type(object)',
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }  // Updates once per second
+);
+```
+
+#### Resource Information
+
+Resource properties are monitored at a slower rate:
+
+```typescript
+// From ResourceInfo.vue:28-35
+const subscription = props.liveUpdate.subscribe(props.objectName,
+  {
+    description: 'object.description',
+    uid: '"0x{:x}".format(object.uid)',
+    path: 'str(object.path)'
+  },
+  { updateFrequencyMs: 1000 }  // 1 second updates for static info
+);
+```
+
+## Director Connection
+
+The plugin connects to a disguise Director instance using a URL parameter or automatic detection.
+
+### Connection Methods
+
+<Steps>
+  <Step title="URL Parameter (Recommended)">
+    Pass the Director hostname/IP as a query parameter:
+    
+    ```
+    http://localhost:8080/?director=192.168.1.100
+    http://localhost:8080/?director=my-director.local
+    ```
+  </Step>
+  
+  <Step title="Automatic Detection">
+    If no `director` parameter is provided, the plugin uses the current hostname:
+    
+    ```
+    http://192.168.1.100:8080/  → Connects to 192.168.1.100
+    ```
+  </Step>
+</Steps>
+
+### Connection Implementation
+
+```typescript
+// From App.vue:19-22
+const queryParams = new URLSearchParams(window.location.search);
+const director = queryParams.get('director') ?? window.location.hostname;
+
+const liveUpdate = useLiveUpdate(director);
+```
+
+### Examples
+
+<Tabs>
+  <Tab title="Local Development">
+    Connect to a Director running on the same machine:
+    
+    ```
+    http://localhost:8080/
+    ```
+    
+    Or explicitly:
+    ```
+    http://localhost:8080/?director=localhost
+    ```
+  </Tab>
+  
+  <Tab title="Network Director">
+    Connect to a Director on your network:
+    
+    ```
+    http://localhost:8080/?director=192.168.1.50
+    http://localhost:8080/?director=director-01.studio.local
+    ```
+  </Tab>
+  
+  <Tab title="Multiple Directors">
+    Switch between Directors by changing the URL parameter:
+    
+    ```
+    http://localhost:8080/?director=director-main
+    http://localhost:8080/?director=director-backup
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+The Director connection is established when the page loads. To connect to a different Director, change the URL parameter and reload the page.
+</Note>
+
+## Storage and Persistence
+
+The plugin automatically saves your configuration to browser localStorage, preserving your setup across sessions.
+
+### What Gets Persisted
+
+<Tabs>
+  <Tab title="Object List">
+    The list of monitored objects is stored globally:
+    
+    ```typescript
+    // From SubscriptionManager.vue:34
+    const objects = useStorage<string[]>(
+      'disguise-liveupdate-tester-subscriptionmanager', 
+      []
+    );
+    ```
+    
+    **Storage Key**: `disguise-liveupdate-tester-subscriptionmanager`
+    
+    **Format**: Array of object name strings
+    ```json
+    ["screen2:surface_1", "layer1:videotrack_1"]
+    ```
+  </Tab>
+  
+  <Tab title="Property Subscriptions">
+    Each object's property subscriptions are stored separately:
+    
+    ```typescript
+    // From ObjectSubscription.vue:64
+    const storageKey = `disguise-liveupdate-tester-objectsubscription-${props.objectName}`;
+    ```
+    
+    **Storage Key**: `disguise-liveupdate-tester-objectsubscription-{objectName}`
+    
+    **Format**: Array of subscription configuration objects
+    ```json
+    [
+      {
+        "property": "width",
+        "options": { "updateFrequencyMs": 50 }
+      },
+      {
+        "property": "object.description",
+        "options": { "updateFrequencyMs": 1000 }
+      }
+    ]
+    ```
+  </Tab>
+</Tabs>
+
+### Storage Migration
+
+The plugin includes automatic migration from older storage formats:
+
+```typescript
+// From ObjectSubscription.vue:66-79
+const raw = localStorage.getItem(storageKey);
+if (raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    // Upgrade old format (array of strings) to new format (array of objects)
+    if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+      localStorage.setItem(storageKey, JSON.stringify(
+        parsed.map((property: string) => ({ property, options: {} }))
+      ));
+    }
+  } catch (e) {
+    localStorage.removeItem(storageKey);
+  }
+}
+```
+
+<Info>
+If you have subscriptions from an older version of the plugin, they will automatically be upgraded to include the new options structure.
+</Info>
+
+### Clearing Storage
+
+To reset the plugin to its default state:
+
+<Steps>
+  <Step title="Open browser developer tools">
+    Press **F12** or right-click and select "Inspect"
+  </Step>
+  
+  <Step title="Navigate to Application/Storage tab">
+    Find the "Local Storage" section
+  </Step>
+  
+  <Step title="Clear LiveUpdate Tester keys">
+    Delete keys starting with:
+    - `disguise-liveupdate-tester-subscriptionmanager`
+    - `disguise-liveupdate-tester-objectsubscription-`
+  </Step>
+  
+  <Step title="Reload the page">
+    The plugin will start fresh with no saved objects or subscriptions
+  </Step>
+</Steps>
+
+### Storage Limitations
+
+<Warning>
+Browser localStorage has a typical limit of 5-10MB per origin. If you monitor hundreds of objects with many properties, you may approach this limit.
+</Warning>
+
+**Best practices**:
+- Remove objects you're no longer monitoring
+- Unsubscribe from properties you don't need
+- Clear old subscriptions periodically
+
+## Performance Optimization
+
+Combine configuration options for optimal performance:
+
+### Visibility-Based Optimization
+
+The plugin automatically pauses subscriptions for properties that aren't visible in the viewport:
+
+```typescript
+// From PropertySubscription.vue:45-52
+const row = useTemplateRef<HTMLElement>('row');
+
+const subscription = props.liveUpdate.subscribe(props.objectName,
+  { [props.property]: props.property },
+  props.options
+);
+useSubscriptionVisibility(row, subscription);
+```
+
+<Tip>
+Scrolling a property subscription out of view automatically pauses its updates, reducing CPU usage and network traffic.
+</Tip>
+
+### Optimization Strategies
+
+1. **Use appropriate update frequencies**
+   - Fast (16-50ms) for frequently changing values
+   - Slow (1000ms+) for static properties
+
+2. **Monitor only what you need**
+   - Subscribe to specific properties, not entire objects
+   - Unsubscribe from properties when done testing
+
+3. **Leverage visibility optimization**
+   - Keep frequently-updated subscriptions visible
+   - Scroll less important subscriptions out of view
+
+4. **Remove unused objects**
+   - Delete object subscriptions you're no longer using
+   - Reduces storage usage and initial load time
+
+### Example Configuration
+
+```typescript
+// High-performance setup example
+
+// Fast updates for animation (visible, scrolled into view)
+position.x         // updateFrequencyMs: 16
+position.y         // updateFrequencyMs: 16
+
+// Medium updates for interaction
+selected           // updateFrequencyMs: 100
+
+// Slow updates for metadata (can scroll out of view)
+object.description // updateFrequencyMs: 5000
+object.uid         // updateFrequencyMs: 5000
+```

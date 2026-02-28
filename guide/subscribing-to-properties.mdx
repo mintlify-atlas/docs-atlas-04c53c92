@@ -1,0 +1,361 @@
+---
+title: Subscribing to Properties
+description: Learn how to subscribe to object properties, use autocomplete, and work with Python expressions for live monitoring
+---
+
+Property subscriptions allow you to monitor specific attributes of objects in real-time. The plugin supports Python expressions and provides intelligent autocomplete to help you explore object properties.
+
+## Entering Property Paths
+
+To subscribe to a property:
+
+<Steps>
+  <Step title="Locate the property input field">
+    At the bottom of each subscription box, you'll find an input field with the placeholder "Enter property to subscribe".
+  </Step>
+  
+  <Step title="Enter a Python expression">
+    Type the property name or Python expression you want to monitor. Examples:
+    - Simple property: `width`
+    - Nested property: `transform.position.x`
+    - Python expression: `len(tracks)`
+  </Step>
+  
+  <Step title="Configure update frequency (optional)">
+    Set the update frequency in milliseconds (default: 50ms).
+  </Step>
+  
+  <Step title="Subscribe">
+    Click **Subscribe** or press **Enter** to add the property subscription.
+  </Step>
+</Steps>
+
+### Property Input Component
+
+```vue
+<!-- From PropertyInput.vue:3-7 -->
+<input
+  type="text"
+  v-model="inputValue"
+  placeholder="Enter property to subscribe"
+  @keyup.enter="emitSubscribe"
+  @keydown.tab.prevent="completeSuggestion"
+  :list="autocompleteListId"
+/>
+```
+
+## Autocomplete Feature
+
+The plugin provides intelligent autocomplete suggestions as you type, powered by Python's `rlcompleter` module.
+
+### How Autocomplete Works
+
+<Info>
+Autocomplete suggestions appear automatically as you type and update in real-time with a 250ms debounce delay.
+</Info>
+
+1. **Start typing** - Suggestions appear in a dropdown as you type
+2. **Select suggestion** - Click a suggestion or press **Tab** to autocomplete
+3. **Explore properties** - Type `.` after an object to see its attributes
+
+### Autocomplete Implementation
+
+```typescript
+// From PropertyInput.vue:82-91
+watchDebounced(inputValue, async (newValue) => {
+  if (newValue.trim()) {
+    const result = await autocomplete(props.objectName, newValue.trim());
+    suggestions.value = JSON.parse(result.returnValue) || [];
+  } else {
+    suggestions.value = [];
+  }
+}, {
+  debounce: 250
+});
+```
+
+### Python Autocomplete Backend
+
+The autocomplete functionality is powered by a Python script that evaluates the object context:
+
+```python
+# From liveupdate_tester.py:7-30
+def autocomplete(objExpr, propPath):
+    object = Expression.evaluateFromString(objExpr)
+
+    if object is None:
+        return None
+    
+    names = dict(subscription_manager.__dict__)
+    names.update(object=object)
+    
+    completer = Completer(names)
+
+    matches = []
+    index = 0
+    while len(matches) < 20: # Limit total results
+        match = completer.complete(propPath, index)
+        if match is None:
+            break
+        if '__' in match:
+            index += 1
+            continue
+        matches.append(match)
+        index += 1
+
+    return matches
+```
+
+<Tip>
+The autocomplete filters out Python dunder methods (those containing `__`) and limits results to 20 suggestions for better performance.
+</Tip>
+
+## Property Subscription Options
+
+When subscribing to a property, you can configure its behavior:
+
+### Update Frequency
+
+Control how often the property value is updated:
+
+```vue
+<!-- From PropertyInput.vue:19-26 -->
+<div style="margin-top: 10px;">
+  <label for="update-frequency">Update Frequency (ms):</label>
+  <input
+    id="update-frequency"
+    type="number"
+    min="0"
+    v-model.number="updateFrequencyMs"
+    style="width: 100px; margin-left: 8px;"
+  />
+</div>
+```
+
+- **Default value**: 50ms (updates 20 times per second)
+- **Minimum value**: 0ms (updates as fast as possible)
+- **Recommended range**: 16ms-1000ms
+
+<Warning>
+Very low update frequencies (below 16ms) may impact performance, especially when monitoring many properties simultaneously.
+</Warning>
+
+### Subscription Configuration
+
+The subscription is created with your specified options:
+
+```typescript
+// From PropertyInput.vue:57-68
+const emitSubscribe = () => {
+  const property = inputValue.value.trim();
+  if (property) {
+    emit('subscribe', {
+      property,
+      options: {
+        updateFrequencyMs: updateFrequencyMs.value
+      }
+    });
+    inputValue.value = '';
+  }
+};
+```
+
+## Viewing Property Values in JSON Editor
+
+Property values are displayed in an interactive JSON editor that supports:
+
+- **Tree view** - Hierarchical display of complex objects
+- **Syntax highlighting** - Color-coded JSON for better readability
+- **Collapsible nodes** - Expand/collapse nested structures
+- **Real-time updates** - Values update automatically at the configured frequency
+
+```vue
+<!-- From PropertySubscription.vue:4-5 -->
+<td>
+  <JsonEditorVue v-model="jsonValue" :mode="Mode.tree" :navigation-bar="false" :main-menu-bar="false" />
+</td>
+```
+
+### Value Types
+
+The JSON editor displays various value types:
+
+<Tabs>
+  <Tab title="Primitives">
+    Simple values like strings, numbers, and booleans:
+    ```json
+    "My Surface"
+    1920
+    true
+    ```
+  </Tab>
+  
+  <Tab title="Objects">
+    Complex objects with nested properties:
+    ```json
+    {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Arrays">
+    Lists of values:
+    ```json
+    ["track1", "track2", "track3"]
+    ```
+  </Tab>
+  
+  <Tab title="Null">
+    Null or undefined values:
+    ```json
+    null
+    ```
+  </Tab>
+</Tabs>
+
+## Unsubscribing from Properties
+
+To stop monitoring a property:
+
+1. Locate the property row in the subscription table
+2. Click the **trash icon** in the Action column
+3. The property subscription will be removed immediately
+
+```typescript
+// From ObjectSubscription.vue:90-92
+const unsubscribe = (property: string) => {
+  subscriptions.value = subscriptions.value.filter(sub => sub.property !== property);
+};
+```
+
+<Note>
+Unsubscribing from a property removes it from localStorage, so it won't be restored when you reload the plugin.
+</Note>
+
+## Python Expression Examples
+
+The plugin supports full Python expressions, not just simple property paths. This gives you powerful querying capabilities.
+
+### Basic Properties
+
+Access simple object properties:
+
+```python
+width
+height
+name
+description
+```
+
+### Nested Properties
+
+Access nested attributes using dot notation:
+
+```python
+transform.position.x
+transform.rotation.y
+transform.scale.z
+```
+
+### Type Information
+
+Get type information about objects:
+
+```python
+# From ObjectSubscription.vue:96
+type(object)
+
+# Check if object is a Resource
+# From ObjectSubscription.vue:97
+isinstance(object, Resource)
+```
+
+### Resource Properties
+
+Access resource-specific properties:
+
+```python
+# From ResourceInfo.vue:30-32
+object.description
+"0x{:x}".format(object.uid)  # UID in hexadecimal
+str(object.path)              # Full resource path
+```
+
+### Collection Operations
+
+Work with lists and collections:
+
+```python
+len(tracks)              # Number of tracks
+tracks[0].name          # First track name
+[t.name for t in tracks] # List of all track names
+```
+
+### Computed Values
+
+Perform calculations and transformations:
+
+```python
+width * height           # Calculate area
+round(opacity * 100, 2)  # Convert to percentage
+str(uuid).upper()        # Format UUID
+```
+
+### Conditional Expressions
+
+Use Python conditionals:
+
+```python
+"enabled" if active else "disabled"
+width if width > 0 else "auto"
+```
+
+## Advanced Usage
+
+### Multiple Subscriptions
+
+You can subscribe to multiple properties of the same object. Each subscription operates independently with its own update frequency:
+
+```typescript
+// Example: Subscribe to multiple properties with different frequencies
+// Fast updates for animation properties (16ms = ~60fps)
+position.x  // updateFrequencyMs: 16
+
+// Slower updates for static properties (1000ms = 1fps)
+description // updateFrequencyMs: 1000
+```
+
+### Storage Format
+
+Property subscriptions are stored as an array of configuration objects:
+
+```typescript
+// From ObjectSubscription.vue:80
+const subscriptions = useStorage<PropertySubscriptionConfig[]>(storageKey, []);
+
+// Storage format:
+[
+  { 
+    property: "width", 
+    options: { updateFrequencyMs: 50 } 
+  },
+  { 
+    property: "object.description", 
+    options: { updateFrequencyMs: 1000 } 
+  }
+]
+```
+
+### Visibility Optimization
+
+<Tip>
+The plugin automatically pauses subscriptions when they're not visible in the viewport, optimizing performance for large numbers of subscriptions.
+</Tip>
+
+```typescript
+// From PropertySubscription.vue:52
+useSubscriptionVisibility(row, subscription);
+```

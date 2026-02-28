@@ -1,0 +1,177 @@
+---
+title: Installation
+description: Learn how to install LiveUpdate Tester as a Designer plugin or set it up for development.
+---
+
+There are two ways to use LiveUpdate Tester: install the pre-built plugin for immediate use, or set up the development environment to customize and extend the plugin.
+
+## Plugin Installation (Recommended)
+
+For most users, installing the pre-built plugin is the fastest way to get started.
+
+<Steps>
+  <Step title="Download the Plugin">
+    Download the latest release from the [GitHub releases page](https://github.com/disguise-one/Designer_Plugin-Live_Update/releases).
+    
+    <Tip>
+    Look for the latest version in the releases page. The download will be a `.zip` file containing the built plugin.
+    </Tip>
+  </Step>
+  
+  <Step title="Locate Your Project's Plugins Folder">
+    Find the `plugins` folder in your running Designer project directory. This is typically located in:
+    
+    ```
+    [Your Project Path]/plugins/
+    ```
+    
+    <Note>
+    The project must be running in Designer for the plugin to be accessible.
+    </Note>
+  </Step>
+  
+  <Step title="Extract the Plugin">
+    Unzip the downloaded plugin archive into the `plugins` folder. The structure should look like:
+    
+    ```
+    plugins/
+    └── liveupdate-tester/
+        ├── index.html
+        ├── assets/
+        └── d3plugin.json
+    ```
+  </Step>
+  
+  <Step title="Access the Plugin">
+    The plugin will now be available in two ways:
+    
+    **From Designer:**
+    - Open the plugin launcher inside Designer
+    - Look for "Live Update tester" in the plugin list
+    - Click to launch the plugin
+    
+    **From Web Browser:**
+    - Navigate to `http://localhost/` in your web browser
+    - Select "Live Update tester" from the web-based plugin launcher
+    
+    <Info>
+    The plugin requires an active Designer session to function, as specified in the `d3plugin.json` configuration (`requiresSession: true`).
+    </Info>
+  </Step>
+</Steps>
+
+## Development Setup
+
+Set up a development environment to modify the plugin or contribute to the project.
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Docker" icon="docker">
+    [Install Docker](https://www.docker.com/) and ensure it's running on your system.
+  </Card>
+  
+  <Card title="VS Code + Dev Containers" icon="code">
+    [Install VS Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+  </Card>
+</CardGroup>
+
+<Warning>
+The development environment uses Docker containers to ensure consistent dependencies and configuration. Make sure Docker is running before proceeding.
+</Warning>
+
+### Setup Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the LiveUpdate Tester repository to your local machine:
+    
+    ```bash
+    git clone https://github.com/disguise-one/Designer_Plugin-Live_Update.git
+    cd Designer_Plugin-Live_Update
+    ```
+  </Step>
+  
+  <Step title="Open in VS Code">
+    Open the project folder in Visual Studio Code:
+    
+    ```bash
+    code .
+    ```
+    
+    When prompted, click **Reopen in Container**. If you don't see the prompt:
+    
+    1. Press `F1` to open the command palette
+    2. Type `Dev Containers: Reopen in Container`
+    3. Select the command
+    
+    <Info>
+    VS Code will build the development container. This may take a few minutes the first time.
+    </Info>
+  </Step>
+  
+  <Step title="Start the Development Server">
+    Once the container is built and running, open a terminal in VS Code and start the development server:
+    
+    ```bash
+    npm run serve
+    ```
+    
+    The development server will start using Vite, typically on port 5173.
+  </Step>
+  
+  <Step title="Access the Development Server">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:5173?director=localhost:80
+    ```
+    
+    This assumes Designer is running on `localhost` at port `80`. Adjust the `director` parameter if your Designer instance is running elsewhere.
+    
+    <Tip>
+    The `director` URL parameter tells the plugin where to find your Designer instance. See the [Quick Start guide](/quickstart) for more details.
+    </Tip>
+  </Step>
+</Steps>
+
+### Development Workflow
+
+The development server uses Vite for hot module replacement (HMR), which means:
+
+- Changes to Vue components are reflected instantly
+- No manual page refresh required
+- Fast rebuild times for rapid iteration
+
+<Note>
+The project structure includes:
+- `src/components`: Vue components for managing subscriptions
+- `src/App.vue`: Main application component
+- `src/main.ts`: Application entry point
+</Note>
+
+## Building for Production
+
+To create a production build of the plugin:
+
+```bash
+npm run build
+```
+
+This will generate optimized files in the `dist` folder, ready to be deployed to a Designer project's `plugins` directory.
+
+For creating a release package:
+
+```bash
+npm run release
+```
+
+This builds the project and runs the release script to create a distributable package.
+
+## Next Steps
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Learn how to subscribe to your first object property and view live updates
+</Card>

@@ -1,0 +1,85 @@
+---
+title: Introduction
+description: LiveUpdate Tester is a Vue 3 plugin for disguise Designer that enables real-time testing and monitoring of object properties through live updates.
+---
+
+## What is LiveUpdate Tester?
+
+LiveUpdate Tester is a Vue 3 application plugin for disguise Designer that provides a powerful interface for testing and monitoring live updates from the `@disguise-one/vue-liveupdate` library. It allows you to subscribe to object properties in your Designer project and view their changes in real-time.
+
+### What is disguise Designer?
+
+Disguise Designer is a professional media server platform used in live events, broadcast, and virtual production. It manages complex visual workflows, handles real-time rendering, and controls multiple outputs for large-scale productions. Designer exposes objects and properties through its API, which this plugin helps you monitor and test.
+
+### How LiveUpdate Tester Helps
+
+When building custom plugins or integrations with disguise Designer, you need to understand how object properties update in real-time. LiveUpdate Tester provides an intuitive UI to:
+
+- Subscribe to any object in your Designer project
+- Monitor property values as they change
+- Edit property values directly from the interface
+- Test different update frequencies and subscription configurations
+- View resource metadata for Designer objects
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time Property Monitoring" icon="chart-line">
+    Subscribe to object properties and see their values update live as your Designer project runs.
+  </Card>
+  
+  <Card title="Dynamic Object Management" icon="plus-minus">
+    Add and remove objects dynamically from the monitoring interface without restarting the plugin.
+  </Card>
+  
+  <Card title="Autocomplete for Properties" icon="wand-magic-sparkles">
+    Intelligent autocomplete suggestions for property paths make it easy to discover and subscribe to properties.
+  </Card>
+  
+  <Card title="Configurable Update Frequency" icon="clock">
+    Control how often properties are polled from Designer to balance performance and responsiveness.
+  </Card>
+  
+  <Card title="JSON-based Property Editing" icon="pencil">
+    Edit property values directly from the UI using a JSON editor for complex data structures.
+  </Card>
+  
+  <Card title="Resource Metadata Display" icon="info-circle">
+    View detailed metadata for Designer Resource objects, including type information and hierarchy.
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+<Tip>
+LiveUpdate Tester is particularly useful during plugin development, allowing you to verify your subscriptions work correctly before integrating them into your custom plugin.
+</Tip>
+
+- **Plugin Development**: Test LiveUpdate subscriptions before integrating them into your custom plugin
+- **Property Discovery**: Explore available properties on Designer objects using autocomplete
+- **Live Debugging**: Monitor property changes during show programming to debug unexpected behavior
+- **Integration Testing**: Verify property updates work correctly across different object types
+- **Learning**: Understand how Designer's object model works by observing live property values
+
+## Architecture
+
+LiveUpdate Tester is built with:
+
+- **Vue 3**: Modern reactive UI framework
+- **@disguise-one/vue-liveupdate**: Core library for subscribing to Designer properties
+- **@disguise-one/designer-pythonapi**: Python API integration for Designer
+- **Vite**: Fast development server and build tool
+
+The plugin runs as a web application that connects to your Designer instance via URL parameters, making it accessible from both the Designer plugin launcher and any web browser.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download and set up LiveUpdate Tester in your Designer project
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get started with your first property subscription in minutes
+  </Card>
+</CardGroup>

@@ -1,0 +1,176 @@
+---
+title: Using the Plugin
+description: Learn how to use the LiveUpdate Tester plugin interface to monitor and test object properties in real-time
+---
+
+The LiveUpdate Tester provides an intuitive interface for adding objects, subscribing to properties, and viewing live updates from disguise Designer.
+
+## Plugin Interface Overview
+
+The plugin consists of three main areas:
+
+- **Object input field** - Add new objects to monitor
+- **Subscription boxes** - Display objects and their subscribed properties
+- **Property tables** - View and manage property subscriptions for each object
+
+## Adding Objects
+
+<Steps>
+  <Step title="Enter the object name">
+    Type the object name in the "Object Name" input field. The default placeholder is `screen2:surface_1`.
+    
+    Object names follow the disguise naming convention:
+    ```
+    screen2:surface_1
+    layer1:videotrack_1
+    ```
+  </Step>
+  
+  <Step title="Add the object">
+    Click the **Add** button or press **Enter** to add the object to your monitoring list.
+    
+    <Note>
+    If you try to add an object that's already in your list, you'll see an alert: "Object already added."
+    </Note>
+  </Step>
+  
+  <Step title="View the subscription box">
+    A new subscription box will appear for the added object, displaying:
+    - Object name and type (e.g., `[Surface]`)
+    - Resource information (if applicable)
+    - Property subscription table
+    - Property input controls
+  </Step>
+</Steps>
+
+### Example: Adding an Object
+
+```typescript
+// From SubscriptionManager.vue:36-42
+const addObject = () => {
+  if (objects.value.includes(objectName.value)) {
+    alert('Object already added.');
+    return;
+  }
+  objects.value.push(objectName.value);
+};
+```
+
+## Removing Objects
+
+To remove an object from monitoring:
+
+1. Locate the subscription box for the object you want to remove
+2. Click the **trash icon** button in the top-right corner of the subscription box
+3. The object and all its property subscriptions will be removed
+
+```typescript
+// From SubscriptionManager.vue:44-46
+const removeObject = (objectName: string) => {
+  objects.value = objects.value.filter(obj => obj !== objectName);
+};
+```
+
+<Warning>
+Removing an object will delete all property subscriptions for that object. This action cannot be undone.
+</Warning>
+
+## Understanding the Subscription Box Layout
+
+Each subscription box displays comprehensive information about the monitored object:
+
+### Header Section
+
+The header shows:
+- **Object name** - The identifier you provided (e.g., `screen2:surface_1`)
+- **Object type** - Detected automatically using `type(object)` (e.g., `[Surface]`, `[VideoTrack]`)
+- **Remove button** - Trash icon for removing the object
+
+### Resource Information Panel
+
+<Info>
+Resource information is automatically displayed for objects that are instances of the `Resource` class.
+</Info>
+
+The resource info panel shows:
+
+- **Description** - The object's description property
+- **UID** - Unique identifier in hexadecimal format (e.g., `0x1a2b3c4d`)
+- **Path** - Full path to the resource
+
+```vue
+<!-- From ResourceInfo.vue:28-35 -->
+const subscription = props.liveUpdate.subscribe(props.objectName,
+  {
+    description: 'object.description',
+    uid: '"0x{:x}".format(object.uid)',
+    path: 'str(object.path)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+These values update automatically every 1000ms (1 second).
+
+### Property Subscription Table
+
+The table displays all active property subscriptions with three columns:
+
+| Column | Description |
+|--------|-------------|
+| **Property** | The Python expression or property path being monitored |
+| **Value** | Interactive JSON editor showing the current value |
+| **Action** | Unsubscribe button to remove the property subscription |
+
+## Viewing Resource Info
+
+Resource information is determined automatically using Python expressions:
+
+```typescript
+// From ObjectSubscription.vue:94-100
+const { type, isResource } = props.liveUpdate.subscribe(
+  props.objectName, {
+    type: 'type(object)',
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+<Tabs>
+  <Tab title="Resource Objects">
+    Objects that are instances of `Resource` will display:
+    - Type badge (e.g., `[Surface]`)
+    - Resource information panel with description, UID, and path
+    - Property subscription table
+  </Tab>
+  
+  <Tab title="Non-Resource Objects">
+    Objects that are not resources will display:
+    - Type badge only
+    - Property subscription table
+    - No resource information panel
+  </Tab>
+</Tabs>
+
+## Persistence
+
+<Tip>
+All objects and their property subscriptions are automatically saved to browser localStorage. Your monitoring setup will persist across browser sessions.
+</Tip>
+
+The plugin uses two storage mechanisms:
+
+1. **Subscription Manager** - Stores the list of object names
+   ```typescript
+   // From SubscriptionManager.vue:34
+   const objects = useStorage<string[]>('disguise-liveupdate-tester-subscriptionmanager', []);
+   ```
+
+2. **Object Subscriptions** - Stores property subscriptions for each object
+   ```typescript
+   // From ObjectSubscription.vue:64
+   const storageKey = `disguise-liveupdate-tester-objectsubscription-${props.objectName}`;
+   ```
+
+This means you can close and reopen the plugin without losing your monitoring configuration.

@@ -1,0 +1,282 @@
+---
+title: Building from Source
+description: Learn how to build the LiveUpdate Tester plugin from source and create release packages
+---
+
+This guide covers the build process, release workflow, and output artifacts for the LiveUpdate Tester plugin.
+
+## NPM Scripts
+
+The project includes three main npm scripts defined in `package.json`:
+
+<CodeGroup>
+```bash Development Server
+npm run serve
+```
+
+```bash Production Build
+npm run build
+```
+
+```bash Release Package
+npm run release
+```
+</CodeGroup>
+
+### Script Details
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `serve` | `vite` | Starts the Vite development server on port 5173 |
+| `build` | `vite build` | Builds the production bundle |
+| `release` | `vite build && sh scripts/release.sh $npm_package_version` | Builds and packages the plugin for distribution |
+
+## Build Process
+
+<Steps>
+  <Step title="Run the Build Command">
+    Execute the build script to create a production bundle:
+
+    ```bash
+    npm run build
+    ```
+
+    This uses Vite to bundle the application with optimizations.
+  </Step>
+
+  <Step title="Vite Compilation">
+    Vite processes the source files:
+
+    - Compiles TypeScript to JavaScript
+    - Bundles Vue components
+    - Processes Python files using `designerPythonLoader`
+    - Minifies and optimizes assets
+    - Generates source maps
+  </Step>
+
+  <Step title="Asset Copying">
+    The build process automatically copies plugin metadata files:
+
+    ```javascript
+    // From vite.config.mts
+    {
+      name: 'copy-extra-assets',
+      generateBundle() {
+        if (!existsSync('dist')) {
+          mkdirSync('dist');
+        }
+        copyFileSync('icon.svg', 'dist/icon.svg');
+        copyFileSync('d3plugin.json', 'dist/d3plugin.json');
+      }
+    }
+    ```
+
+    This ensures the plugin icon and metadata are included in the output.
+  </Step>
+
+  <Step title="Output Generated">
+    The build creates a `dist/` directory containing:
+
+    - Bundled JavaScript files
+    - Compiled CSS
+    - `index.html` entry point
+    - `icon.svg` plugin icon
+    - `d3plugin.json` plugin metadata
+  </Step>
+</Steps>
+
+## Vite Configuration
+
+The build process is configured in `vite.config.mts`:
+
+```typescript
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import { copyFileSync, mkdirSync, existsSync } from 'fs';
+import { designerPythonLoader } from '@disguise-one/designer-pythonapi/vite-loader'
+
+export default defineConfig({
+  base: './', // Use relative URLs for assets
+  plugins: [vue(), designerPythonLoader()],
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.vue']
+  },
+  server: {
+    host: '0.0.0.0'
+  },
+  build: {
+    rollupOptions: {
+      plugins: [
+        {
+          name: 'copy-extra-assets',
+          generateBundle() {
+            if (!existsSync('dist')) {
+              mkdirSync('dist');
+            }
+            copyFileSync('icon.svg', 'dist/icon.svg');
+            copyFileSync('d3plugin.json', 'dist/d3plugin.json');
+          }
+        }
+      ]
+    }
+  }
+});
+```
+
+### Key Configuration Options
+
+<Note>
+**`base: './'`** - Uses relative URLs so the plugin works when hosted in Designer
+
+**`designerPythonLoader()`** - Vite plugin that processes Python files and makes them importable from TypeScript
+
+**`host: '0.0.0.0'`** - Allows the dev server to be accessible from outside the container
+</Note>
+
+## Release Process
+
+<Steps>
+  <Step title="Run the Release Script">
+    Create a release package with the current version from `package.json`:
+
+    ```bash
+    npm run release
+    ```
+
+    This runs the build and then executes `scripts/release.sh` with the package version.
+  </Step>
+
+  <Step title="Build Completion">
+    The production build is created in the `dist/` directory.
+  </Step>
+
+  <Step title="Package Creation">
+    The release script (`scripts/release.sh`) packages the build:
+
+    ```bash
+    #!/bin/bash
+
+    VERSION=$1
+    RELEASE_FILE=liveupdate_tester_v$VERSION.zip
+
+    if [ -z "$VERSION" ]; then
+      echo "Error: Version is not provided."
+      exit 1
+    fi
+
+    cp -r dist liveupdate_tester
+    rm -f $RELEASE_FILE
+    zip -r $RELEASE_FILE liveupdate_tester
+    rm -rf liveupdate_tester
+    ```
+
+    This creates a zip file named `liveupdate_tester_v{VERSION}.zip`.
+  </Step>
+
+  <Step title="Release Artifact">
+    The final release artifact is ready for distribution:
+
+    ```
+    liveupdate_tester_v{VERSION}.zip
+    └── liveupdate_tester/
+        ├── index.html
+        ├── assets/
+        │   ├── index-{hash}.js
+        │   └── index-{hash}.css
+        ├── icon.svg
+        └── d3plugin.json
+    ```
+  </Step>
+</Steps>
+
+<Info>
+The release zip can be extracted directly to the `plugins` folder of a Designer project. The plugin will appear in the plugin launcher.
+</Info>
+
+## Plugin Structure
+
+### d3plugin.json
+
+The plugin metadata file defines the plugin configuration:
+
+```json
+{
+    "name": "Live Update tester",
+    "requiresSession": true
+}
+```
+
+**Key Fields:**
+- `name` - Display name shown in the Designer plugin launcher
+- `requiresSession` - Set to `true`, requiring an active Designer session to run
+
+### icon.svg
+
+The plugin icon displayed in the Designer plugin launcher. This SVG file is copied to the dist folder during the build.
+
+## Dependencies
+
+The project relies on two key packages from the disguise-one organization:
+
+### @disguise-one/vue-liveupdate
+
+```json
+"@disguise-one/vue-liveupdate": "github:disguise-one/vue-liveupdate"
+```
+
+Provides the core LiveUpdate functionality:
+- `useLiveUpdate` composable for creating connections
+- `LiveUpdateOverlay` component for connection status
+- `useSubscriptionVisibility` for pausing subscriptions when not visible
+
+### @disguise-one/designer-pythonapi
+
+```json
+"@disguise-one/designer-pythonapi": "github:disguise-one/designer-pythonapi"
+```
+
+Enables Python integration:
+- `designerPythonLoader` Vite plugin for processing `.py` files
+- Runtime for executing Python modules in Designer
+- Type definitions for Python module imports
+
+<Warning>
+Both packages are installed directly from GitHub repositories. Ensure you have appropriate access permissions when running `npm install`.
+</Warning>
+
+## Build Artifacts
+
+After a successful build, the `dist/` directory contains:
+
+| File/Directory | Description |
+|----------------|-------------|
+| `index.html` | Entry point HTML file with asset references |
+| `assets/` | Bundled and minified JavaScript and CSS files |
+| `icon.svg` | Plugin icon for Designer launcher |
+| `d3plugin.json` | Plugin metadata and configuration |
+
+<Note>
+The asset filenames include content hashes (e.g., `index-a1b2c3d4.js`) for cache busting.
+</Note>
+
+## Troubleshooting
+
+### Build Fails with Python Errors
+
+Ensure the `@disguise-one/designer-pythonapi` package is installed correctly:
+
+```bash
+npm install
+```
+
+### Missing Assets in dist/
+
+Verify that `icon.svg` and `d3plugin.json` exist in the project root before building.
+
+### Release Script Permission Denied
+
+Make the release script executable:
+
+```bash
+chmod +x scripts/release.sh
+```

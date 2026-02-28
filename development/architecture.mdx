@@ -1,0 +1,492 @@
+---
+title: Architecture Overview
+description: Understand the technical architecture of the LiveUpdate Tester plugin, including component hierarchy, LiveUpdate integration, and build process
+---
+
+The LiveUpdate Tester is built with Vue 3, TypeScript, and integrates with Designer's Python API. This guide provides a comprehensive overview of the application architecture.
+
+## Technology Stack
+
+The plugin is built using modern web technologies:
+
+- **Vue 3** - Progressive JavaScript framework with Composition API
+- **TypeScript** - Static typing for improved developer experience
+- **Vite** - Fast build tool and development server
+- **Designer Python API** - Integration with Designer's Python environment
+- **LiveUpdate Library** - Real-time subscription and data synchronization
+
+## Application Entry Point
+
+The application bootstraps in `src/main.ts`:
+
+```typescript
+import { createApp } from 'vue';
+import App from './App.vue';
+
+createApp(App).mount('#app');
+```
+
+This creates a Vue application instance and mounts it to the DOM.
+
+## Component Hierarchy
+
+The application follows a hierarchical component structure:
+
+```
+App.vue (Root)
+├── LiveUpdateOverlay (Connection status)
+└── SubscriptionManager
+    └── ObjectSubscription (for each object)
+        ├── ResourceInfo (if object is a Resource)
+        ├── PropertySubscription (for each property)
+        │   └── JsonEditorVue (value display/edit)
+        └── PropertyInput (add new properties)
+```
+
+### App.vue
+
+The root component initializes the LiveUpdate connection and Python module:
+
+```vue
+<template>
+  <LiveUpdateOverlay :liveUpdate="liveUpdate" />
+  <div>
+    <h1>LiveUpdate Subscriptions</h1>
+    <SubscriptionManager :liveUpdate="liveUpdate" />
+  </div>
+</template>
+
+<script lang="ts">
+import { provide } from 'vue';
+import { useLiveUpdate, LiveUpdateOverlay } from '@disguise-one/vue-liveupdate';
+import SubscriptionManager from './components/SubscriptionManager.vue';
+import { liveupdate_tester } from './liveupdate_tester.py';
+
+export default {
+  setup() {
+    const queryParams = new URLSearchParams(window.location.search);
+    const director = queryParams.get('director') ?? window.location.hostname;
+
+    const liveUpdate = useLiveUpdate(director);
+
+    const module = liveupdate_tester(director);
+
+    module.registration.then((reg) => {
+      console.log('LiveUpdate module registered', reg);
+    }).catch((error) => {
+      console.error('Error registering LiveUpdate module:', error);
+    });
+
+    provide('autocomplete', module.autocomplete);
+
+    return { liveUpdate };
+  },
+  components: {
+    SubscriptionManager,
+    LiveUpdateOverlay
+  }
+};
+</script>
+```
+
+**Key Responsibilities:**
+- Extracts Director host from URL query parameters
+- Initializes LiveUpdate connection with `useLiveUpdate(director)`
+- Registers Python module for autocomplete functionality
+- Provides autocomplete function to child components via `provide/inject`
+- Displays connection status overlay
+
+### SubscriptionManager.vue
+
+Manages the list of subscribed objects:
+
+```typescript
+// Key features from SubscriptionManager.vue:23-48
+const objectName = ref('screen2:surface_1');
+const objects = useStorage<string[]>(
+  'disguise-liveupdate-tester-subscriptionmanager', 
+  []
+);
+
+const addObject = () => {
+  if (objects.value.includes(objectName.value)) {
+    alert('Object already added.');
+    return;
+  }
+  objects.value.push(objectName.value);
+};
+
+const removeObject = (objectName: string) => {
+  objects.value = objects.value.filter(obj => obj !== objectName);
+};
+```
+
+**Key Features:**
+- Persists object list to localStorage using `useStorage`
+- Provides input field and button to add new objects
+- Renders an `ObjectSubscription` component for each object
+- Default object name: `screen2:surface_1`
+
+### ObjectSubscription.vue
+
+Manages property subscriptions for a single object:
+
+```typescript
+// Storage with format migration (ObjectSubscription.vue:64-80)
+const storageKey = `disguise-liveupdate-tester-objectsubscription-${props.objectName}`;
+
+// Handle upgrading old storage format
+const raw = localStorage.getItem(storageKey);
+if (raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+      localStorage.setItem(storageKey, JSON.stringify(
+        parsed.map((property: string) => ({ property, options: {} }))
+      ));
+    }
+  } catch (e) {
+    localStorage.removeItem(storageKey);
+  }
+}
+const subscriptions = useStorage<PropertySubscriptionConfig[]>(storageKey, []);
+```
+
+**Key Features:**
+- Subscribes to object metadata (type and isResource status)
+- Maintains list of property subscriptions with configuration options
+- Persists subscriptions to localStorage (per object)
+- Handles migration from legacy storage format
+- Displays ResourceInfo for Resource objects
+- Renders table of PropertySubscription components
+
+### PropertySubscription.vue
+
+Handles individual property subscriptions:
+
+```typescript
+// PropertySubscription.vue:44-52
+const row = useTemplateRef<HTMLElement>('row');
+
+const subscription = props.liveUpdate.subscribe(
+  props.objectName,
+  { [props.property]: props.property },
+  props.options
+);
+useSubscriptionVisibility(row, subscription);
+
+const jsonValue = ref(subscription[props.property]);
+```
+
+**Key Features:**
+- Creates LiveUpdate subscription for a specific property
+- Uses `useSubscriptionVisibility` to pause updates when scrolled out of view
+- Displays property value using JsonEditorVue
+- Provides unsubscribe button
+
+### PropertyInput.vue
+
+Input component for adding new property subscriptions with autocomplete support.
+
+## LiveUpdate Integration
+
+The plugin uses the `@disguise-one/vue-liveupdate` library for real-time data synchronization.
+
+### useLiveUpdate Composable
+
+Creates and manages the LiveUpdate connection:
+
+```typescript
+const liveUpdate = useLiveUpdate(director);
+```
+
+**Returns:**
+- `subscribe(objectName, properties, options)` - Creates property subscriptions
+- Connection state management
+- Automatic reconnection handling
+
+### Subscription API
+
+The subscribe method creates reactive property subscriptions:
+
+```typescript
+const { type, isResource } = liveUpdate.subscribe(
+  'screen2:surface_1',
+  {
+    type: 'type(object)',
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+**Parameters:**
+1. **objectName** - Designer object expression (e.g., `screen2:surface_1`)
+2. **properties** - Object mapping property names to Python expressions
+3. **options** - Subscription configuration:
+   - `updateFrequencyMs` - Update frequency in milliseconds
+   - Other options passed through to LiveUpdate
+
+**Returns:**
+Reactive object with properties that update automatically when values change in Designer.
+
+### useSubscriptionVisibility
+
+Optimizes performance by pausing subscriptions when not visible:
+
+```typescript
+const row = useTemplateRef<HTMLElement>('row');
+const subscription = props.liveUpdate.subscribe(...);
+useSubscriptionVisibility(row, subscription);
+```
+
+Subscriptions automatically pause when scrolled out of view and resume when visible again.
+
+### LiveUpdateOverlay
+
+Displays connection status to the user:
+
+```vue
+<LiveUpdateOverlay :liveUpdate="liveUpdate" />
+```
+
+Shows connection state, errors, and reconnection attempts.
+
+## Python Module Integration
+
+The plugin integrates a Python module for server-side functionality.
+
+### liveupdate_tester.py
+
+Provides autocomplete functionality using Python's introspection:
+
+```python
+from d3 import Expression
+from rlcompleter import Completer
+import subscription_manager
+
+__all__ = ['autocomplete']
+
+def autocomplete(objExpr, propPath):
+    object = Expression.evaluateFromString(objExpr)
+
+    if object is None:
+        return None
+    
+    names = dict(subscription_manager.__dict__)
+    names.update(object=object)
+    
+    completer = Completer(names)
+
+    matches = []
+    index = 0
+    while len(matches) < 20: # Limit total results
+        match = completer.complete(propPath, index)
+        if match is None:
+            break
+        if '__' in match:
+            index += 1
+            continue
+        matches.append(match)
+        index += 1
+
+    return matches
+```
+
+**Functionality:**
+- Evaluates Designer object expressions using `d3.Expression`
+- Uses Python's `rlcompleter` for property name completion
+- Filters out dunder methods (`__*__`)
+- Returns up to 20 autocomplete suggestions
+
+### Importing Python in TypeScript
+
+The `designerPythonLoader` Vite plugin enables importing Python files:
+
+```typescript
+import { liveupdate_tester } from './liveupdate_tester.py';
+
+const module = liveupdate_tester(director);
+
+module.registration.then((reg) => {
+  console.log('LiveUpdate module registered', reg);
+});
+
+provide('autocomplete', module.autocomplete);
+```
+
+**Module Object:**
+- `registration` - Promise that resolves when module is registered with Designer
+- `autocomplete` - Python function exposed to JavaScript
+- Functions can be called directly from TypeScript with automatic serialization
+
+## Vite Build Configuration
+
+The build process is configured in `vite.config.mts`:
+
+### designerPythonLoader Plugin
+
+```typescript
+import { designerPythonLoader } from '@disguise-one/designer-pythonapi/vite-loader'
+
+plugins: [vue(), designerPythonLoader()]
+```
+
+**Features:**
+- Processes `.py` files during build
+- Generates TypeScript type definitions
+- Bundles Python code for Designer runtime
+- Enables `import` statements for Python modules
+
+### Asset Copying
+
+Custom Rollup plugin copies plugin metadata:
+
+```typescript
+build: {
+  rollupOptions: {
+    plugins: [
+      {
+        name: 'copy-extra-assets',
+        generateBundle() {
+          if (!existsSync('dist')) {
+            mkdirSync('dist');
+          }
+          copyFileSync('icon.svg', 'dist/icon.svg');
+          copyFileSync('d3plugin.json', 'dist/d3plugin.json');
+        }
+      }
+    ]
+  }
+}
+```
+
+Ensures plugin files are included in the build output.
+
+### Relative URLs
+
+```typescript
+base: './' // Use relative URLs for assets
+```
+
+Configures Vite to use relative paths, allowing the plugin to work when hosted at any path in Designer.
+
+## Storage and Persistence
+
+The plugin uses localStorage for persistence via the `@vueuse/core` library:
+
+### useStorage Composable
+
+```typescript
+import { useStorage } from '@vueuse/core';
+
+// Store object list
+const objects = useStorage<string[]>(
+  'disguise-liveupdate-tester-subscriptionmanager',
+  []
+);
+
+// Store property subscriptions per object
+const subscriptions = useStorage<PropertySubscriptionConfig[]>(
+  `disguise-liveupdate-tester-objectsubscription-${objectName}`,
+  []
+);
+```
+
+**Features:**
+- Automatic serialization/deserialization
+- Reactive updates across components
+- Type-safe with TypeScript generics
+
+### Storage Keys
+
+| Key | Stores | Example |
+|-----|--------|--------|
+| `disguise-liveupdate-tester-subscriptionmanager` | List of subscribed objects | `["screen2:surface_1", "renderer:camera1"]` |
+| `disguise-liveupdate-tester-objectsubscription-{objectName}` | Property subscriptions for an object | `[{property: "transform.position", options: {}}]` |
+
+### Format Migration
+
+ObjectSubscription.vue includes code to migrate legacy storage formats:
+
+```typescript
+// Upgrade from array of strings to array of objects
+if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+  localStorage.setItem(storageKey, JSON.stringify(
+    parsed.map((property: string) => ({ property, options: {} }))
+  ));
+}
+```
+
+This ensures backward compatibility when the storage format changes.
+
+## Designer Plugin Integration
+
+The plugin integrates with Designer through `d3plugin.json`:
+
+```json
+{
+    "name": "Live Update tester",
+    "requiresSession": true
+}
+```
+
+### requiresSession
+
+Setting `"requiresSession": true` means:
+- Plugin only runs when Designer has an active session
+- Ensures Designer API is available
+- Prevents errors when no project is loaded
+
+### Plugin Discovery
+
+When installed in the `plugins` folder:
+1. Designer scans for `d3plugin.json` files
+2. Plugin appears in the plugin launcher with name and icon
+3. Clicking the plugin opens `index.html` in a webview
+4. Plugin can communicate with Designer via LiveUpdate and Python API
+
+## Data Flow
+
+<Steps>
+  <Step title="Initialization">
+    1. User opens plugin in Designer
+    2. `App.vue` reads `director` from URL query parameters
+    3. `useLiveUpdate(director)` creates WebSocket connection
+    4. Python module registers with Designer
+  </Step>
+
+  <Step title="Adding Object">
+    1. User enters object name in SubscriptionManager
+    2. Object name added to localStorage
+    3. ObjectSubscription component created
+    4. Component subscribes to object type and isResource
+  </Step>
+
+  <Step title="Adding Property">
+    1. User enters property path in PropertyInput
+    2. Autocomplete fetched from Python module
+    3. Property subscription added to localStorage
+    4. PropertySubscription component created
+    5. LiveUpdate subscription created for property
+  </Step>
+
+  <Step title="Receiving Updates">
+    1. Property value changes in Designer
+    2. Designer sends update via LiveUpdate WebSocket
+    3. Vue reactive ref updates automatically
+    4. JsonEditorVue displays new value
+  </Step>
+
+  <Step title="Visibility Optimization">
+    1. User scrolls property out of view
+    2. IntersectionObserver detects visibility change
+    3. `useSubscriptionVisibility` pauses subscription
+    4. Property scrolls back into view
+    5. Subscription resumes automatically
+  </Step>
+</Steps>
+
+<Info>
+The architecture ensures efficient real-time synchronization while minimizing unnecessary updates through visibility-based subscription management.
+</Info>

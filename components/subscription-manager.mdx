@@ -1,0 +1,100 @@
+---
+title: SubscriptionManager
+description: Root component for managing LiveUpdate object subscriptions
+---
+
+## Overview
+
+The `SubscriptionManager` component is the root container component that allows users to add and manage multiple object subscriptions. It provides an input field to add new objects by name and displays each object subscription in its own `ObjectSubscription` component.
+
+This component uses local storage to persist the list of subscribed objects across sessions.
+
+**Source**: `src/components/SubscriptionManager.vue`
+
+## Props
+
+<ParamField path="liveUpdate" type="UseLiveUpdateReturn" required>
+  The LiveUpdate instance returned from the `useLiveUpdate` composable. This is passed down to child `ObjectSubscription` components to enable property subscriptions.
+</ParamField>
+
+## Features
+
+### Persistent Storage
+
+The component uses `useStorage` from VueUse to persist subscribed objects in local storage with the key `disguise-liveupdate-tester-subscriptionmanager`. This ensures that object subscriptions are maintained across page reloads.
+
+### Duplicate Prevention
+
+When adding a new object, the component checks if it already exists in the subscription list and alerts the user if attempting to add a duplicate:
+
+```typescript
+const addObject = () => {
+  if (objects.value.includes(objectName.value)) {
+    alert('Object already added.');
+    return;
+  }
+  objects.value.push(objectName.value);
+};
+```
+
+### Default Object Name
+
+The input field is pre-populated with a default object name `screen2:surface_1` to help users get started quickly.
+
+## Usage
+
+```vue
+<template>
+  <SubscriptionManager :liveUpdate="liveUpdate" />
+</template>
+
+<script setup lang="ts">
+import { useLiveUpdate } from '@disguise-one/vue-liveupdate';
+import SubscriptionManager from './components/SubscriptionManager.vue';
+
+const liveUpdate = useLiveUpdate();
+</script>
+```
+
+## Component Structure
+
+The component renders:
+1. An input field for entering object names
+2. An "Add" button to add new subscriptions
+3. A list of `ObjectSubscription` components, one for each subscribed object
+
+```vue
+<div>
+  <div>
+    <label for="objectName">Object Name:</label>
+    <input id="objectName" v-model="objectName" type="text" @keyup.enter="addObject" />
+    <button @click="addObject" style="margin-left: 10px;">Add</button>
+  </div>
+
+  <div v-for="objectName in objects" :key="objectName">
+    <ObjectSubscription
+      :liveUpdate="liveUpdate"
+      :objectName="objectName"
+      @remove="() => removeObject(objectName)"
+    />
+  </div>
+</div>
+```
+
+## Methods
+
+### addObject()
+
+Adds a new object to the subscription list. Triggered by clicking the "Add" button or pressing Enter in the input field. Prevents duplicate objects from being added.
+
+### removeObject(objectName: string)
+
+Removes an object from the subscription list. Called when the `remove` event is emitted from an `ObjectSubscription` component.
+
+**Location**: `src/components/SubscriptionManager.vue:44`
+
+```typescript
+const removeObject = (objectName: string) => {
+  objects.value = objects.value.filter(obj => obj !== objectName);
+};
+```

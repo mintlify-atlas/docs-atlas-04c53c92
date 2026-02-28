@@ -1,0 +1,135 @@
+---
+title: ResourceInfo
+description: Displays metadata for Designer Resource objects
+---
+
+## Overview
+
+The `ResourceInfo` component displays metadata information for Designer Resource objects, including description, UID (unique identifier), and file path. It subscribes to these properties and automatically pauses updates when not visible in the viewport.
+
+This component is conditionally rendered by `ObjectSubscription` when the subscribed object is detected to be a Resource instance.
+
+**Source**: `src/components/ResourceInfo.vue`
+
+## Props
+
+<ParamField path="liveUpdate" type="UseLiveUpdateReturn" required>
+  The LiveUpdate instance used to subscribe to resource properties.
+</ParamField>
+
+<ParamField path="objectName" type="string" required>
+  The name of the Designer Resource object to display information for.
+</ParamField>
+
+## Features
+
+### Resource Metadata Subscription
+
+The component subscribes to three key resource properties using Python expressions:
+
+```typescript
+const subscription = props.liveUpdate.subscribe(props.objectName,
+  {
+    description: 'object.description',
+    uid: '"0x{:x}".format(object.uid)',
+    path: 'str(object.path)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+**Location**: `src/components/ResourceInfo.vue:28`
+
+<ResponseField name="description" type="string">
+  The resource's description field
+</ResponseField>
+
+<ResponseField name="uid" type="string">
+  The unique identifier, formatted as a hexadecimal string (e.g., `0x1a2b3c4d`)
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  The file system path to the resource
+</ResponseField>
+
+### Visibility Optimization
+
+The component uses `useSubscriptionVisibility` to automatically pause subscription updates when the component is scrolled out of view:
+
+```typescript
+const resourceInfo = useTemplateRef<HTMLElement>('resourceInfo');
+useSubscriptionVisibility(resourceInfo, subscription);
+```
+
+**Location**: `src/components/ResourceInfo.vue:36`
+
+This optimization helps reduce unnecessary network traffic and computational overhead when displaying multiple resources.
+
+### Fixed Update Rate
+
+Resource metadata is updated at 1000ms (1 second) intervals, which is appropriate since this information typically doesn't change frequently:
+
+```typescript
+{ updateFrequencyMs: 1000 }
+```
+
+## Usage
+
+```vue
+<ResourceInfo
+  v-if="isResource"
+  :liveUpdate="liveUpdate"
+  :objectName="'VideoLayer_1'"
+/>
+```
+
+Typically used within `ObjectSubscription`:
+
+```vue
+<ResourceInfo
+  v-if="isResource"
+  :liveUpdate="liveUpdate"
+  :objectName="objectName"
+/>
+```
+
+## Component Structure
+
+```vue
+<div ref="resourceInfo" class="resource-info">
+  <p><strong>Description:</strong> {{ description }}</p>
+  <p><strong>UID:</strong> {{ uid }}</p>
+  <p><strong>Path:</strong> {{ path }}</p>
+</div>
+```
+
+## Styling
+
+The component features a light gray background with a border to visually distinguish resource metadata from property subscriptions:
+
+```css
+.resource-info {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  background-color: #f9f9f9;
+}
+```
+
+**Location**: `src/components/ResourceInfo.vue:48`
+
+## Resource Detection
+
+The `ObjectSubscription` component determines if an object is a Resource using:
+
+```typescript
+const { isResource } = props.liveUpdate.subscribe(
+  props.objectName, 
+  {
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+Only when `isResource` is `true` will the `ResourceInfo` component be rendered.

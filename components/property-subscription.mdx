@@ -1,0 +1,127 @@
+---
+title: PropertySubscription
+description: Component for displaying and managing a single property subscription
+---
+
+## Overview
+
+The `PropertySubscription` component renders a single table row displaying a property subscription. It shows the property name, its current value in an interactive JSON editor, and an unsubscribe button.
+
+This component uses the `useSubscriptionVisibility` composable to automatically pause updates when the row is not visible in the viewport, optimizing performance.
+
+**Source**: `src/components/PropertySubscription.vue`
+
+## Props
+
+<ParamField path="liveUpdate" type="UseLiveUpdateReturn" required>
+  The LiveUpdate instance used to create the property subscription.
+</ParamField>
+
+<ParamField path="objectName" type="string" required>
+  The name of the Designer object containing this property.
+</ParamField>
+
+<ParamField path="property" type="string" required>
+  The property expression to subscribe to. This can be a simple property name (e.g., `name`) or a Python expression (e.g., `object.transform.position.x`).
+</ParamField>
+
+<ParamField path="options" type="SubscriptionConfiguration" default="{}">
+  Subscription configuration options, such as `updateFrequencyMs` to control how often the property value is updated.
+</ParamField>
+
+## Events
+
+<ParamField path="unsubscribe" type="(property: string) => void">
+  Emitted when the user clicks the unsubscribe button to remove this property subscription.
+</ParamField>
+
+## Features
+
+### Interactive JSON Editor
+
+The component uses `json-editor-vue` to display property values in an interactive tree view, making it easy to explore complex nested objects:
+
+```vue
+<JsonEditorVue 
+  v-model="jsonValue" 
+  :mode="Mode.tree" 
+  :navigation-bar="false" 
+  :main-menu-bar="false" 
+/>
+```
+
+**Location**: `src/components/PropertySubscription.vue:5`
+
+### Visibility-Based Optimization
+
+The component uses `useSubscriptionVisibility` to automatically pause property updates when the row is scrolled out of view:
+
+```typescript
+const row = useTemplateRef<HTMLElement>('row');
+useSubscriptionVisibility(row, subscription);
+```
+
+**Location**: `src/components/PropertySubscription.vue:52`
+
+This optimization is particularly useful when many properties are subscribed, as it reduces unnecessary updates and improves performance.
+
+### Dynamic Property Subscription
+
+The component creates a subscription using the property name as both the key and the expression:
+
+```typescript
+const subscription = props.liveUpdate.subscribe(
+  props.objectName,
+  { [props.property]: props.property },
+  props.options
+);
+```
+
+**Location**: `src/components/PropertySubscription.vue:48`
+
+This allows the property expression to be any valid Python expression that can be evaluated in the Designer context.
+
+## Usage
+
+```vue
+<PropertySubscription
+  :liveUpdate="liveUpdate"
+  :objectName="'screen2:surface_1'"
+  :property="'object.transform.position.x'"
+  :options="{ updateFrequencyMs: 100 }"
+  @unsubscribe="handleUnsubscribe"
+/>
+```
+
+## Component Structure
+
+The component renders a table row with three columns:
+
+```vue
+<tr ref="row">
+  <td>{{ property }}</td>
+  <td>
+    <JsonEditorVue 
+      v-model="jsonValue" 
+      :mode="Mode.tree" 
+      :navigation-bar="false" 
+      :main-menu-bar="false" 
+    />
+  </td>
+  <td>
+    <button @click="$emit('unsubscribe', property)" aria-label="Unsubscribe">
+      <img src="../assets/icons/trash.svg" alt="Unsubscribe" width="16" height="16" />
+    </button>
+  </td>
+</tr>
+```
+
+## Styling
+
+The component uses scoped CSS to ensure consistent table styling:
+
+- First column (property name) and last column (action button) have minimal width (`width: 1%`)
+- Last column is center-aligned for the button
+- All cells have borders and padding for clear visual separation
+
+**Location**: `src/components/PropertySubscription.vue:62`

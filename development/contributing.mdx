@@ -1,0 +1,148 @@
+---
+title: Contributing
+description: Learn how to contribute to the LiveUpdate Tester project and set up your development environment
+---
+
+This guide will help you set up your development environment and start contributing to the LiveUpdate Tester plugin.
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- [Docker](https://www.docker.com/) installed and running
+- [Visual Studio Code](https://code.visualstudio.com/)
+- [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension for VS Code
+
+<Info>
+The project uses VS Code Dev Containers to provide a consistent development environment with all necessary dependencies pre-configured.
+</Info>
+
+## Getting Started
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the repository and navigate to the project directory:
+
+    ```bash
+    git clone https://github.com/disguise-one/Designer_Plugin-Live_Update.git
+    cd Designer_Plugin-Live_Update
+    ```
+  </Step>
+
+  <Step title="Open in VS Code">
+    Open the project folder in Visual Studio Code:
+
+    ```bash
+    code .
+    ```
+  </Step>
+
+  <Step title="Reopen in Container">
+    When prompted, click **Reopen in Container**. If you don't see the prompt:
+
+    1. Press `F1` to open the command palette
+    2. Type `Dev Containers: Reopen in Container`
+    3. Select the command
+
+    <Note>
+    The container uses the `mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm` image with Node.js 22 and TypeScript pre-installed.
+    </Note>
+
+    The Dev Container will automatically run `npm install` after creation to install all dependencies.
+  </Step>
+
+  <Step title="Start the Development Server">
+    Once the container is built and running, open a terminal in VS Code and start the development server:
+
+    ```bash
+    npm run serve
+    ```
+
+    The development server will start on port 5173.
+  </Step>
+
+  <Step title="Test in Your Browser">
+    Open your browser and navigate to:
+
+    ```
+    http://localhost:5173?director=localhost:80
+    ```
+
+    <Info>
+    This assumes Designer is running on localhost at port 80. Adjust the `director` query parameter if your Designer instance is running on a different host or port.
+    </Info>
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Project Structure
+
+The project is organized as follows:
+
+- **`src/components/`** - Vue components for managing subscriptions:
+  - `SubscriptionManager.vue` - Main component for adding/removing object subscriptions
+  - `ObjectSubscription.vue` - Displays and manages subscriptions for a single object
+  - `PropertySubscription.vue` - Individual property subscription with live value display
+  - `PropertyInput.vue` - Input component for adding new property subscriptions
+  - `ResourceInfo.vue` - Displays resource-specific information
+- **`src/App.vue`** - Main application component
+- **`src/main.ts`** - Application entry point
+- **`src/liveupdate_tester.py`** - Python module for autocomplete functionality
+
+### Making Changes
+
+<Steps>
+  <Step title="Make Your Changes">
+    Edit the source files in the `src/` directory. The Vite development server will automatically reload when you save changes.
+  </Step>
+
+  <Step title="Test Your Changes">
+    Test your changes in the browser with a running Designer instance. The plugin requires an active Designer session to function properly.
+
+    <Warning>
+    The plugin is configured with `"requiresSession": true` in `d3plugin.json`, so it will only work when Designer has an active session.
+    </Warning>
+  </Step>
+
+  <Step title="Build the Plugin">
+    Before committing, ensure the plugin builds successfully:
+
+    ```bash
+    npm run build
+    ```
+
+    This will create the production build in the `dist/` directory.
+  </Step>
+</Steps>
+
+## Key Libraries
+
+The project uses the following key dependencies:
+
+- **[@disguise-one/vue-liveupdate](https://github.com/disguise-one/vue-liveupdate)** - Core library for LiveUpdate functionality
+- **[@disguise-one/designer-pythonapi](https://github.com/disguise-one/designer-pythonapi)** - Python API integration for Designer
+- **Vue 3** - Progressive JavaScript framework
+- **json-editor-vue** - JSON editor component for property values
+- **Vite** - Build tool and development server
+
+## Hot Module Replacement
+
+The development server uses Vite's HMR (Hot Module Replacement) to provide instant feedback:
+
+- Vue component changes are reflected immediately
+- The application state is preserved when possible
+- Full page reload occurs only when necessary
+
+## Tips for Contributors
+
+<Note>
+- The project uses TypeScript for type safety
+- Vue Volar extension is pre-configured in the Dev Container for enhanced Vue 3 support
+- Use the browser's Developer Tools to debug LiveUpdate connections and subscriptions
+- Check the console for Python module registration messages
+</Note>
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.

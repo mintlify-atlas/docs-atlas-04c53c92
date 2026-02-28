@@ -1,0 +1,177 @@
+---
+title: ObjectSubscription
+description: Component for managing property subscriptions on a single Designer object
+---
+
+## Overview
+
+The `ObjectSubscription` component manages property subscriptions for a single Designer object. It displays the object's type, provides a remove button, and contains a table of property subscriptions. For Resource objects, it also displays additional resource information.
+
+This component automatically subscribes to the object's type and checks if it's a Resource instance using LiveUpdate Python expressions.
+
+**Source**: `src/components/ObjectSubscription.vue`
+
+## Props
+
+<ParamField path="liveUpdate" type="UseLiveUpdateReturn" required>
+  The LiveUpdate instance used to create property subscriptions.
+</ParamField>
+
+<ParamField path="objectName" type="string" required>
+  The name of the Designer object to subscribe to (e.g., `screen2:surface_1`).
+</ParamField>
+
+## Events
+
+<ParamField path="remove" type="() => void">
+  Emitted when the user clicks the remove button to delete this object subscription.
+</ParamField>
+
+## Features
+
+### Automatic Type Detection
+
+The component automatically subscribes to detect the object's type and whether it's a Resource:
+
+```typescript
+const { type, isResource } = props.liveUpdate.subscribe(
+  props.objectName, {
+    type: 'type(object)',
+    isResource: 'isinstance(object, Resource)'
+  },
+  { updateFrequencyMs: 1000 }
+);
+```
+
+**Location**: `src/components/ObjectSubscription.vue:94`
+
+### Persistent Property Subscriptions
+
+Property subscriptions are stored in local storage with a unique key per object:
+
+```typescript
+const storageKey = `disguise-liveupdate-tester-objectsubscription-${props.objectName}`;
+const subscriptions = useStorage<PropertySubscriptionConfig[]>(storageKey, []);
+```
+
+**Location**: `src/components/ObjectSubscription.vue:64`
+
+### Storage Migration
+
+The component handles upgrading from an old storage format (array of strings) to the new format (array of objects with property and options):
+
+```typescript
+const raw = localStorage.getItem(storageKey);
+if (raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+      localStorage.setItem(storageKey, JSON.stringify(
+        parsed.map((property: string) => ({ property, options: {} }))
+      ));
+    }
+  } catch (e) {
+    localStorage.removeItem(storageKey);
+  }
+}
+```
+
+**Location**: `src/components/ObjectSubscription.vue:67`
+
+### Resource Information Display
+
+For objects that are Resources, the component conditionally renders the `ResourceInfo` component:
+
+```vue
+<ResourceInfo
+  v-if="isResource"
+  :liveUpdate="liveUpdate"
+  :objectName="objectName"
+/>
+```
+
+## Usage
+
+```vue
+<ObjectSubscription
+  :liveUpdate="liveUpdate"
+  :objectName="'screen2:surface_1'"
+  @remove="handleRemove"
+/>
+```
+
+## Component Structure
+
+The component renders:
+1. A remove button (with trash icon)
+2. Object name heading with type badge
+3. `ResourceInfo` component (if object is a Resource)
+4. Table of property subscriptions
+5. `PropertyInput` component for adding new subscriptions
+
+```vue
+<div class="subscription-box">
+  <button class="remove-button" @click="$emit('remove')" aria-label="Remove">
+    <img src="../assets/icons/trash.svg" alt="Remove" width="16" height="16" />
+  </button>
+  <h3>{{ objectName }} <code>[{{ type }}]</code></h3>
+  <ResourceInfo
+    v-if="isResource"
+    :liveUpdate="liveUpdate"
+    :objectName="objectName"
+  />
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Value</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <PropertySubscription
+        v-for="sub in subscriptions"
+        :key="sub.property"
+        :liveUpdate="liveUpdate"
+        :objectName="objectName"
+        :property="sub.property"
+        :options="sub.options"
+        @unsubscribe="unsubscribe"
+      />
+    </tbody>
+  </table>
+  <PropertyInput
+    :objectName="objectName"
+    @subscribe="subscribe"
+  />
+</div>
+```
+
+## Methods
+
+### subscribe({ property, options })
+
+Adds a new property subscription with the specified options. Prevents duplicate subscriptions on the same property.
+
+**Location**: `src/components/ObjectSubscription.vue:82`
+
+```typescript
+const subscribe = ({property, options = {}}: {property: string, options: SubscriptionConfiguration}) => {
+  const p = property.trim();
+  if (!subscriptions.value.some(sub => sub.property === p)) {
+    subscriptions.value.push({ property: p, options });
+  }
+};
+```
+
+### unsubscribe(property: string)
+
+Removes a property subscription from the list.
+
+**Location**: `src/components/ObjectSubscription.vue:90`
+
+```typescript
+const unsubscribe = (property: string) => {
+  subscriptions.value = subscriptions.value.filter(sub => sub.property !== property);
+};
+```
