@@ -18,7 +18,7 @@ Before starting this guide, make sure you have:
 
 LiveUpdate Tester connects to your Designer instance using a URL parameter. The basic format is:
 
-```
+```text
 http://localhost/?director=<director-address>:<port>
 ```
 
@@ -31,7 +31,7 @@ http://localhost/?director=<director-address>:<port>
 
 The plugin automatically uses `window.location.hostname` if no `director` parameter is provided, as shown in the initialization code from App.vue:19-20:
 
-```typescript
+```javascript
 const queryParams = new URLSearchParams(window.location.search);
 const director = queryParams.get('director') ?? window.location.hostname;
 ```
@@ -42,7 +42,7 @@ const director = queryParams.get('director') ?? window.location.hostname;
   <Step title="Launch the Plugin">
     Open LiveUpdate Tester from Designer's plugin launcher or navigate to it in your web browser:
     
-    ```
+    ```text
     http://localhost/?director=localhost:80
     ```
     
@@ -149,7 +149,7 @@ Under the hood, LiveUpdate Tester uses the `@disguise-one/vue-liveupdate` librar
 
 From App.vue:22, the connection is initialized with:
 
-```typescript
+```javascript
 const liveUpdate = useLiveUpdate(director);
 ```
 
@@ -186,7 +186,7 @@ Let's walk through a complete example of monitoring a surface object:
 
 LiveUpdate subscriptions can use Python expressions for computed values. For example, the ObjectSubscription component subscribes to type information using expressions (ObjectSubscription.vue:94-100):
 
-```typescript
+```javascript
 const { type, isResource } = props.liveUpdate.subscribe(
   props.objectName, {
     type: 'type(object)',
@@ -204,7 +204,7 @@ LiveUpdate Tester automatically saves your subscriptions to browser localStorage
 
 From SubscriptionManager.vue:34:
 
-```typescript
+```javascript
 const objects = useStorage<string[]>('disguise-liveupdate-tester-subscriptionmanager', []);
 ```
 
