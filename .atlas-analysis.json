@@ -1,0 +1,65 @@
+{
+  "projectType": "frontend",
+  "projectName": "LiveUpdate Tester",
+  "projectDescription": "A Vue 3 plugin for disguise Designer that enables real-time testing and monitoring of object properties through live updates.",
+  "theme": "palm",
+  "primaryColor": "#2563eb",
+  "lightColor": "#60a5fa",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "User Guide",
+        "pages": [
+          "guide/using-the-plugin",
+          "guide/subscribing-to-properties",
+          "guide/configuration"
+        ]
+      },
+      {
+        "group": "Components",
+        "pages": [
+          "components/subscription-manager",
+          "components/object-subscription",
+          "components/property-subscription",
+          "components/property-input",
+          "components/resource-info"
+        ]
+      },
+      {
+        "group": "Development",
+        "pages": [
+          "development/contributing",
+          "development/building",
+          "development/architecture"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time property monitoring",
+    "Dynamic object subscription management",
+    "Autocomplete for property paths",
+    "Configurable update frequency",
+    "JSON-based property editing",
+    "Resource metadata display"
+  ],
+  "publicApiSurface": [
+    "SubscriptionManager component",
+    "ObjectSubscription component",
+    "PropertySubscription component",
+    "PropertyInput component",
+    "ResourceInfo component",
+    "autocomplete function",
+    "useLiveUpdate composable",
+    "useSubscriptionVisibility composable"
+  ]
+}
